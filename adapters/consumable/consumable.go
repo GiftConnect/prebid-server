@@ -43,12 +43,14 @@ type bidRequest struct {
 }
 
 type placement struct {
-	DivName   string `json:"divName"`
-	NetworkId int    `json:"networkId,omitempty"`
-	SiteId    int    `json:"siteId"`
-	UnitId    int    `json:"unitId"`
-	UnitName  string `json:"unitName,omitempty"`
-	AdTypes   []int  `json:"adTypes"`
+	DivName     string  `json:"divName"`
+	NetworkId   int     `json:"networkId,omitempty"`
+	SiteId      int     `json:"siteId"`
+	UnitId      int     `json:"unitId"`
+	UnitName    string  `json:"unitName,omitempty"`
+	AdTypes     []int   `json:"adTypes"`
+	BidFloor    float64 `json:"bidfloor,omitempty"`
+	BidFloorCur string  `json:"bidfloorcur,omitempty"`
 }
 
 type user struct {
@@ -212,13 +214,24 @@ func (a *ConsumableAdapter) MakeRequests(request *openrtb2.BidRequest, reqInfo *
 			body.UnitName = consumableExt.UnitName
 		}
 
+		if impression.BidFloor > 0 && impression.BidFloorCur != "" && !strings.EqualFold(impression.BidFloorCur, "USD") {
+			convertedValue, err := reqInfo.ConvertCurrency(impression.BidFloor, impression.BidFloorCur, "USD")
+			if err != nil {
+				return nil, []error{err}
+			}
+			impression.BidFloorCur = "USD"
+			impression.BidFloor = convertedValue
+		}
+
 		body.Placements[i] = placement{
-			DivName:   impression.ID,
-			NetworkId: consumableExt.NetworkId,
-			SiteId:    consumableExt.SiteId,
-			UnitId:    consumableExt.UnitId,
-			UnitName:  consumableExt.UnitName,
-			AdTypes:   getSizeCodes(impression.Banner.Format), // was adTypes: bid.adTypes || getSize(bid.sizes) in prebid.js
+			DivName:     impression.ID,
+			NetworkId:   consumableExt.NetworkId,
+			SiteId:      consumableExt.SiteId,
+			UnitId:      consumableExt.UnitId,
+			UnitName:    consumableExt.UnitName,
+			AdTypes:     getSizeCodes(impression.Banner.Format), // was adTypes: bid.adTypes || getSize(bid.sizes) in prebid.js
+			BidFloor:    impression.BidFloor,
+			BidFloorCur: impression.BidFloorCur,
 		}
 	}
 
